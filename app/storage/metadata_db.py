@@ -20,6 +20,13 @@ class MetadataDB:
             self._conn.execute("ALTER TABLE documents ADD COLUMN content_hash TEXT")
             self._conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_documents_hash ON documents(content_hash) WHERE content_hash IS NOT NULL")
             self._conn.commit()
+        if "status" not in cols:
+            # Pre-existing rows were ingested synchronously, so they are already done.
+            self._conn.execute("ALTER TABLE documents ADD COLUMN status TEXT DEFAULT 'ready'")
+            self._conn.commit()
+        if "error" not in cols:
+            self._conn.execute("ALTER TABLE documents ADD COLUMN error TEXT")
+            self._conn.commit()
 
     def get_document_by_hash(self, content_hash: str) -> dict | None:
         """Return an existing document if the same file content was already ingested."""
@@ -28,10 +35,17 @@ class MetadataDB:
         ).fetchone()
         return dict(row) if row else None
 
-    def add_document(self, doc_id: str, filename: str, file_type: str, file_path: str, content_hash: str | None = None):
+    def add_document(self, doc_id: str, filename: str, file_type: str, file_path: str, content_hash: str | None = None, status: str = "ready"):
         self._conn.execute(
-            "INSERT INTO documents (doc_id, filename, file_type, file_path, content_hash) VALUES (?, ?, ?, ?, ?)",
-            (doc_id, filename, file_type, file_path, content_hash),
+            "INSERT INTO documents (doc_id, filename, file_type, file_path, content_hash, status) VALUES (?, ?, ?, ?, ?, ?)",
+            (doc_id, filename, file_type, file_path, content_hash, status),
+        )
+        self._conn.commit()
+
+    def set_status(self, doc_id: str, status: str, error: str | None = None):
+        self._conn.execute(
+            "UPDATE documents SET status = ?, error = ? WHERE doc_id = ?",
+            (status, error, doc_id),
         )
         self._conn.commit()
 

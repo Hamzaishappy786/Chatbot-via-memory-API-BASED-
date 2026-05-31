@@ -1,5 +1,6 @@
 import hashlib
 import logging
+import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -56,14 +57,19 @@ def auto_ingest_portfolio():
 
         logger.info(f"Ingesting portfolio doc: {file_path.name} ...")
         try:
+            doc_id = uuid.uuid4().hex[:12]
+            ext = file_path.suffix.lower()
+            deps.metadata_db.add_document(
+                doc_id, file_path.name, ext, str(file_path), content_hash, status="processing"
+            )
             result = ingest_document(
+                doc_id,
                 str(file_path),
                 file_path.name,
                 deps.llm,
                 deps.embedding_service,
                 deps.vector_store,
                 deps.metadata_db,
-                content_hash=content_hash,
             )
             deps.portfolio_doc_ids.append(result["doc_id"])
             logger.info(

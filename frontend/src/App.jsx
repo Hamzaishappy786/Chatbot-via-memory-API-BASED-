@@ -25,6 +25,14 @@ export default function App() {
     return () => clearInterval(t);
   }, [refresh]);
 
+  // While any document is still processing in the background, poll for status.
+  const hasProcessing = documents.some((d) => d.status === 'processing');
+  useEffect(() => {
+    if (!hasProcessing) return;
+    const t = setInterval(refresh, 1200);
+    return () => clearInterval(t);
+  }, [hasProcessing, refresh]);
+
   const toggleSelect = (docId) =>
     setSelected((sel) =>
       sel.includes(docId) ? sel.filter((id) => id !== docId) : [...sel, docId]

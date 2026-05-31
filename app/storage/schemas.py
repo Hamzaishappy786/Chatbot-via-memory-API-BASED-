@@ -7,6 +7,8 @@ CREATE TABLE IF NOT EXISTS documents (
     chunk_count INTEGER DEFAULT 0,
     visual_count INTEGER DEFAULT 0,
     content_hash TEXT,
+    status TEXT DEFAULT 'ready',   -- 'processing' | 'ready' | 'error'
+    error TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 

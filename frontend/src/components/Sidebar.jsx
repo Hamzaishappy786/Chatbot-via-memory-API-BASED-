@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { uploadDocument, deleteDocument } from '../api';
 import { UploadIcon, FileIcon, TrashIcon, CheckIcon } from './icons';
 
@@ -66,6 +66,7 @@ function UploadBurst() {
 export default function Sidebar({ documents, selected, onToggleSelect, onRefresh, health }) {
   const fileInput = useRef(null);
   const burstTimer = useRef(null);
+  const prevStatus = useRef(null);
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [error, setError] = useState(null);
@@ -73,11 +74,28 @@ export default function Sidebar({ documents, selected, onToggleSelect, onRefresh
   const [burstKey, setBurstKey] = useState(0);
 
   function celebrate() {
-    setBurstKey((k) => k + 1);   // remount → replays animation every upload
+    setBurstKey((k) => k + 1);   // remount → replays animation every time
     setShowBurst(true);
     clearTimeout(burstTimer.current);
     burstTimer.current = setTimeout(() => setShowBurst(false), 1300);
   }
+
+  // Fire the success burst when a document finishes background processing
+  // (transitions to 'ready'), not merely when the upload POST returns.
+  useEffect(() => {
+    const map = {};
+    let justFinished = false;
+    for (const d of documents) {
+      map[d.doc_id] = d.status;
+      if (prevStatus.current !== null) {
+        const prev = prevStatus.current[d.doc_id];
+        if (d.status === 'ready' && prev !== 'ready') justFinished = true;
+      }
+    }
+    prevStatus.current = map;          // null on first run → no celebrate on mount
+    if (justFinished) celebrate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [documents]);
 
   async function handleFiles(files) {
     if (!files || !files.length) return;
@@ -87,8 +105,7 @@ export default function Sidebar({ documents, selected, onToggleSelect, onRefresh
       for (const file of files) {
         await uploadDocument(file);
       }
-      await onRefresh();
-      celebrate();
+      await onRefresh();   // document appears as "processing"; burst fires when ready
     } catch (e) {
       setError(e.message);
     } finally {
@@ -180,18 +197,29 @@ export default function Sidebar({ documents, selected, onToggleSelect, onRefresh
           <ul className="space-y-1.5">
             {documents.map((doc) => {
               const isSel = selected.includes(doc.doc_id);
+              const isProcessing = doc.status === 'processing';
+              const isError = doc.status === 'error';
+              const selectable = !isProcessing && !isError;
               return (
                 <li
                   key={doc.doc_id}
-                  onClick={() => onToggleSelect(doc.doc_id)}
-                  className={`group rounded-lg border px-3 py-2.5 cursor-pointer transition-colors
+                  onClick={() => selectable && onToggleSelect(doc.doc_id)}
+                  className={`group rounded-lg border px-3 py-2.5 transition-colors
+                    ${selectable ? 'cursor-pointer' : 'cursor-default'}
                     ${isSel
                       ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/10'
-                      : 'border-[var(--color-border)] hover:bg-[var(--color-surface2)]'}`}
+                      : isError
+                        ? 'border-[#f85149]/40 bg-[#f85149]/5'
+                        : 'border-[var(--color-border)] hover:bg-[var(--color-surface2)]'}
+                    ${isProcessing ? 'opacity-90' : ''}`}
                 >
                   <div className="flex items-start gap-2.5">
-                    <div className="mt-0.5 relative">
-                      {isSel ? (
+                    <div className="mt-0.5 relative w-4 h-4 flex items-center justify-center">
+                      {isProcessing ? (
+                        <span className="spin-ring w-4 h-4 rounded-full border-2 border-[var(--color-accent)]/25 border-t-[var(--color-accent)]" />
+                      ) : isError ? (
+                        <span className="text-[#f85149] text-sm leading-none">!</span>
+                      ) : isSel ? (
                         <div className="w-4 h-4 rounded bg-[var(--color-accent)] flex items-center justify-center">
                           <CheckIcon width={12} height={12} className="text-white" />
                         </div>
@@ -201,13 +229,23 @@ export default function Sidebar({ documents, selected, onToggleSelect, onRefresh
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="text-[12.5px] font-medium truncate">{doc.filename}</p>
-                      <p className="text-[11px] text-[var(--color-muted)]">
-                        {doc.chunk_count} chunks · {doc.file_type}
-                      </p>
+                      {isProcessing ? (
+                        <p className="text-[11px] text-[var(--color-accent)] flex items-center gap-1">
+                          Processing<span className="processing-dots" />
+                        </p>
+                      ) : isError ? (
+                        <p className="text-[11px] text-[#f85149] truncate" title={doc.error || 'Failed'}>
+                          Failed — {doc.error || 'ingestion error'}
+                        </p>
+                      ) : (
+                        <p className="text-[11px] text-[var(--color-muted)]">
+                          {doc.chunk_count} chunks · {doc.file_type}
+                        </p>
+                      )}
                     </div>
                     <button
                       onClick={(e) => handleDelete(doc.doc_id, e)}
-                      className="opacity-0 group-hover:opacity-100 text-[var(--color-muted)] hover:text-[#f85149] transition"
+                      className="opacity-0 group-hover:opacity-100 text-[var(--color-muted)] hover:text-[#f85149] transition shrink-0"
                       title="Delete"
                     >
                       <TrashIcon width={14} height={14} />

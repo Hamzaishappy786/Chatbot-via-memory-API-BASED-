@@ -8,6 +8,8 @@ class DocumentInfo(BaseModel):
     file_type: str
     chunk_count: int
     created_at: str
+    status: str = "ready"            # 'processing' | 'ready' | 'error'
+    error: str | None = None
 
 
 class UploadResponse(BaseModel):
@@ -17,6 +19,7 @@ class UploadResponse(BaseModel):
     chunk_count: int
     visual_elements: int
     message: str
+    status: str = "processing"
 
 
 class QueryRequest(BaseModel):

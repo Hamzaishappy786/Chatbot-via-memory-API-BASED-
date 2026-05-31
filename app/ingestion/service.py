@@ -33,18 +33,17 @@ def get_parser(file_path: str):
 
 
 def ingest_document(
+    doc_id: str,
     file_path: str,
     filename: str,
     llm: LLMProvider,
     embeddings: EmbeddingService,
     vector_store: VectorStore,
     metadata_db: MetadataDB,
-    content_hash: str | None = None,
 ) -> dict:
-    doc_id = uuid.uuid4().hex[:12]
+    # The document row is created by the upload route (status='processing')
+    # before this runs, so the file appears in the UI immediately.
     ext = Path(filename).suffix.lower()
-
-    metadata_db.add_document(doc_id, filename, ext, file_path, content_hash)
 
     parser = get_parser(file_path)
     content: ParsedContent = parser.parse(file_path)
@@ -108,6 +107,7 @@ def ingest_document(
         vector_store.add(chunk_ids, embeddings_list, chunk_texts, chunk_metadatas)
 
     metadata_db.update_document_counts(doc_id, len(chunk_ids), visual_count)
+    metadata_db.set_status(doc_id, "ready")
 
     return {
         "doc_id": doc_id,
