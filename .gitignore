@@ -1,16 +1,50 @@
+# Python
 __pycache__/
 *.py[cod]
+*.pyc
+*.pyo
 *.egg-info/
-dist/
-build/
 .eggs/
 *.egg
-.env
-data/chroma/
-data/uploads/
-data/metadata.db
-.venv/
+.Python
 venv/
-*.pyc
-.idea/
+.venv/
+env/
+
+# Environment variables
+.env
+.env.local
+
+# Database & storage
+data/
+*.db
+*.sqlite
+*.sqlite3
+
+# IDE & Editor
 .vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Frontend (React/Vite)
+frontend/node_modules/
+frontend/dist/
+frontend/.env.local
+frontend/.env.*.local
+
+# Build artifacts
+build/
+dist/
+*.min.js
+*.min.css
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
