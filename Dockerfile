@@ -34,9 +34,22 @@ RUN python -c "from sentence_transformers import SentenceTransformer, CrossEncod
 SentenceTransformer('all-MiniLM-L6-v2'); \
 CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2')"
 
+# Models are now baked in — load them straight from the local cache at runtime
+# instead of doing slow (and rate-limited) Hub metadata checks on every startup.
+# Set AFTER the download above so the build still had network access.
+ENV HF_HUB_OFFLINE=1 \
+    TRANSFORMERS_OFFLINE=1
+
 # Application code + the frontend build from stage 1
 COPY app/ ./app/
 COPY --from=frontend /frontend/dist ./frontend/dist
+
+# Hugging Face Spaces (and good practice) run the container as a non-root user
+# with UID 1000. Create it and hand over ownership so the app can write its
+# SQLite DB / Chroma store / uploads under /app/data and read the model cache.
+RUN useradd -m -u 1000 user && chown -R user:user /app
+ENV HOME=/home/user
+USER user
 
 EXPOSE 8000
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
