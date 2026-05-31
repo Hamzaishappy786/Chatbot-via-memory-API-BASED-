@@ -1,0 +1,13 @@
+services:
+  rag:
+    build: .
+    image: multimodal-rag:latest
+    ports:
+      - "8000:8000"
+    environment:
+      # Pulled from the .env file in this directory (GROQ_API_KEY=gsk_...)
+      - GROQ_API_KEY=${GROQ_API_KEY}
+    volumes:
+      # Persist Chroma vectors, SQLite DB, and uploads across restarts
+      - ./data:/app/data
+    restart: unless-stopped

@@ -1,0 +1,25 @@
+# Python
+**/__pycache__
+**/*.py[cod]
+.venv
+venv
+*.egg-info
+
+# Secrets & local data (never bake into the image)
+.env
+data/
+
+# Frontend — installed/built inside the image, not copied from host
+frontend/node_modules
+frontend/dist
+
+# VCS / IDE / docs
+.git
+.gitignore
+.idea
+.vscode
+*.md
+
+# Runtime caches
+.cache
+**/.DS_Store

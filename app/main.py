@@ -6,6 +6,7 @@ from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.models import HealthResponse
 from app.ingestion.router import router as ingestion_router
@@ -121,3 +122,12 @@ def health_check():
         documents_count=deps.metadata_db.count_documents(),
         chunks_count=deps.metadata_db.count_chunks(),
     )
+
+
+# Serve the built React app at "/" in production. Mounted LAST so all API routes
+# above take precedence. In local dev (no build) this is skipped and Vite serves
+# the frontend with a proxy to this backend.
+FRONTEND_DIST = Path(__file__).parent.parent / "frontend" / "dist"
+if FRONTEND_DIST.exists():
+    app.mount("/", StaticFiles(directory=str(FRONTEND_DIST), html=True), name="frontend")
+    logger.info(f"Serving frontend from {FRONTEND_DIST}")
