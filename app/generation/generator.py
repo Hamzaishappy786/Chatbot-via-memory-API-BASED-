@@ -43,23 +43,36 @@ def generate_general_answer(
     return llm.chat(messages, temperature=0.4)
 
 
+def _build_grounded_messages(question, chunks, history):
+    context = build_context(chunks)
+    messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+    if history:
+        messages.extend(history)
+    messages.append({
+        "role": "user",
+        "content": f"Context:\n{context}\n\nQuestion: {question}",
+    })
+    return messages
+
+
 def generate_answer(
     question: str,
     chunks: list[dict],
     llm: LLMProvider,
     history: list[dict] | None = None,
 ) -> str:
-    context = build_context(chunks)
+    return llm.chat(_build_grounded_messages(question, chunks, history), temperature=0.1)
 
-    messages = [{"role": "system", "content": SYSTEM_PROMPT}]
 
-    # Inject prior conversation turns so the model can resolve references
+def stream_answer(question, chunks, llm: LLMProvider, history=None):
+    """Yield grounded-answer text deltas."""
+    yield from llm.stream_chat(_build_grounded_messages(question, chunks, history), temperature=0.1)
+
+
+def stream_general_answer(question, llm: LLMProvider, history=None):
+    """Yield general-knowledge answer text deltas."""
+    messages = [{"role": "system", "content": GENERAL_SYSTEM_PROMPT}]
     if history:
         messages.extend(history)
-
-    messages.append({
-        "role": "user",
-        "content": f"Context:\n{context}\n\nQuestion: {question}",
-    })
-
-    return llm.chat(messages, temperature=0.1)
+    messages.append({"role": "user", "content": question})
+    yield from llm.stream_chat(messages, temperature=0.4)

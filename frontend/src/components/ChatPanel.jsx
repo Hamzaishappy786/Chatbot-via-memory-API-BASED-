@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { query } from '../api';
+import { queryStream } from '../api';
 import { SendIcon, SparkIcon } from './icons';
 
 const DOC_SUGGESTIONS = [
@@ -27,11 +27,12 @@ function confidenceStyle(c) {
   return { label: 'Low', cls: 'bg-[#f85149]/15 text-[#f85149] border-[#f85149]/30' };
 }
 
-function renderMarkdown(text) {
-  const html = text
+function renderMarkdown(text, streaming) {
+  let html = text
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
     .replace(/\n/g, '<br/>');
+  if (streaming) html += '<span class="stream-caret"></span>';
   return { __html: html };
 }
 
@@ -47,7 +48,7 @@ function BotMessage({ msg }) {
       </div>
       <div className="min-w-0">
         <div className="rounded-2xl rounded-tl-sm bg-[var(--color-surface)] border border-[var(--color-border)] px-4 py-3">
-          <div className="text-[14px] leading-relaxed" dangerouslySetInnerHTML={renderMarkdown(msg.answer)} />
+          <div className="text-[14px] leading-relaxed" dangerouslySetInnerHTML={renderMarkdown(msg.answer, msg.streaming)} />
 
           {!isGeneral && msg.citations?.length > 0 && (
             <div className="mt-3 pt-3 border-t border-[var(--color-border)]">
@@ -76,7 +77,7 @@ function BotMessage({ msg }) {
             <span className="pop-in text-[10.5px] px-2 py-0.5 rounded-full border bg-[#d29922]/15 text-[#d29922] border-[#d29922]/30">
               💡 General knowledge — not from your documents
             </span>
-          ) : (
+          ) : msg.streaming ? null : (
             <>
               <span className={`pop-in text-[10.5px] px-2 py-0.5 rounded-full border ${conf.cls}`}>
                 {conf.label} confidence · {Math.round((msg.confidence ?? 0) * 100)}%
@@ -113,21 +114,6 @@ function UserMessage({ text }) {
   );
 }
 
-function Typing() {
-  return (
-    <div className="flex gap-3 max-w-3xl">
-      <div className="w-8 h-8 rounded-full bg-[var(--color-surface2)] border border-[var(--color-border)] flex items-center justify-center shrink-0">
-        <SparkIcon width={15} height={15} className="text-[var(--color-accent)]" />
-      </div>
-      <div className="rounded-2xl rounded-tl-sm bg-[var(--color-surface)] border border-[var(--color-border)] px-4 py-3.5 flex gap-1.5 items-center">
-        <span className="dot w-1.5 h-1.5 rounded-full bg-[var(--color-muted)]" />
-        <span className="dot w-1.5 h-1.5 rounded-full bg-[var(--color-muted)]" />
-        <span className="dot w-1.5 h-1.5 rounded-full bg-[var(--color-muted)]" />
-      </div>
-    </div>
-  );
-}
-
 export default function ChatPanel({ selectedDocIds, documents }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
@@ -141,22 +127,50 @@ export default function ChatPanel({ selectedDocIds, documents }) {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
   }, [messages, busy]);
 
+  // Update the last message (the streaming bot bubble) in place.
+  const patchLast = (patch) =>
+    setMessages((m) => m.map((msg, i) =>
+      i === m.length - 1 ? { ...msg, ...(typeof patch === 'function' ? patch(msg) : patch) } : msg
+    ));
+
   async function send(text) {
     const q = (text ?? input).trim();
     if (!q || busy) return;
     setInput('');
     if (taRef.current) taRef.current.style.height = 'auto';
-    setMessages((m) => [...m, { role: 'user', text: q }]);
+    // push the user message + an empty streaming bot bubble
+    setMessages((m) => [
+      ...m,
+      { role: 'user', text: q },
+      { role: 'bot', answer: '', citations: [], answer_source: 'documents', streaming: true },
+    ]);
     setBusy(true);
-    try {
-      const data = await query({ question: q, docIds: selectedDocIds, sessionId, mode });
-      setSessionId(data.session_id);
-      setMessages((m) => [...m, { role: 'bot', ...data }]);
-    } catch (e) {
-      setMessages((m) => [...m, { role: 'bot', answer: `⚠️ ${e.message}`, citations: [], answer_source: 'general' }]);
-    } finally {
-      setBusy(false);
-    }
+
+    await queryStream(
+      { question: q, docIds: selectedDocIds, sessionId, mode },
+      {
+        onMeta: (meta) => {
+          setSessionId(meta.session_id);
+          patchLast({
+            answer_source: meta.answer_source,
+            citations: meta.citations || [],
+            strategy: meta.strategy,
+          });
+        },
+        onToken: (t) => patchLast((msg) => ({ answer: msg.answer + t })),
+        onDone: (d) => patchLast({
+          streaming: false,
+          confidence: d.confidence,
+          evaluation: d.evaluation,
+        }),
+        onError: (e) => patchLast((msg) => ({
+          answer: (msg.answer || '') + `\n\n⚠️ ${e.message}`,
+          streaming: false,
+          answer_source: 'general',
+        })),
+      }
+    );
+    setBusy(false);
   }
 
   // Input usable unless in strict Documents mode with nothing uploaded
@@ -196,7 +210,7 @@ export default function ChatPanel({ selectedDocIds, documents }) {
                 key={m.id}
                 onClick={() => setMode(m.id)}
                 title={m.hint}
-                className={`relative z-10 flex-1 px-3 py-1.5 text-[12px] font-medium transition-colors active:scale-95
+                className={`relative z-10 flex-1 min-w-[84px] px-5 py-1.5 text-[12px] font-medium whitespace-nowrap transition-colors active:scale-95
                   ${mode === m.id ? 'text-white' : 'text-[var(--color-muted)] hover:text-[var(--color-ink)]'}`}
               >
                 {m.label}
@@ -251,7 +265,6 @@ export default function ChatPanel({ selectedDocIds, documents }) {
               : <BotMessage key={i} msg={m} />
           )
         )}
-        {busy && <Typing />}
       </div>
 
       {/* input */}

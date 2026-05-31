@@ -46,3 +46,47 @@ export async function query({ question, docIds, sessionId, mode }) {
 export async function health() {
   return handle(await fetch('/health'));
 }
+
+// Streamed query over SSE. Calls callbacks as events arrive.
+export async function queryStream(
+  { question, docIds, sessionId, mode },
+  { onMeta, onToken, onDone, onError } = {}
+) {
+  try {
+    const res = await fetch('/query/stream', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        question,
+        doc_ids: docIds || [],
+        session_id: sessionId || null,
+        mode: mode || 'auto',
+      }),
+    });
+    if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`);
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      let sep;
+      while ((sep = buffer.indexOf('\n\n')) >= 0) {
+        const raw = buffer.slice(0, sep).trim();
+        buffer = buffer.slice(sep + 2);
+        if (!raw.startsWith('data:')) continue;
+        const evt = JSON.parse(raw.slice(5).trim());
+        if (evt.type === 'meta') onMeta?.(evt);
+        else if (evt.type === 'token') onToken?.(evt.text);
+        else if (evt.type === 'done') onDone?.(evt);
+        else if (evt.type === 'error') onError?.(new Error(evt.message));
+      }
+    }
+  } catch (e) {
+    onError?.(e);
+  }
+}

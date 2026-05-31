@@ -19,6 +19,19 @@ class GroqProvider(LLMProvider):
         )
         return response.choices[0].message.content
 
+    def stream_chat(self, messages: list[dict], temperature: float = 0.0):
+        stream = self._client.chat.completions.create(
+            model=self._text_model,
+            messages=messages,
+            temperature=temperature,
+            max_tokens=2048,
+            stream=True,
+        )
+        for chunk in stream:
+            delta = chunk.choices[0].delta.content
+            if delta:
+                yield delta
+
     def vision(self, prompt: str, image_base64: str, temperature: float = 0.0) -> str:
         messages = [
             {

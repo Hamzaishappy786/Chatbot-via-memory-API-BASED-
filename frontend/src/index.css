@@ -168,6 +168,18 @@ html, body, #root {
 @keyframes wiggle { 0%,100%{transform:rotate(0)} 25%{transform:rotate(-9deg)} 75%{transform:rotate(9deg)} }
 .hover-wiggle:hover { animation: wiggle .45s ease-in-out; }
 
+/* Streaming caret — blinking block that trails the streamed text */
+@keyframes caret-blink { 0%,100%{opacity:1} 50%{opacity:0} }
+.stream-caret {
+  display: inline-block;
+  width: 7px; height: 1.05em;
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  background: var(--color-accent);
+  border-radius: 1px;
+  animation: caret-blink 1s steps(1) infinite;
+}
+
 /* Accessibility: honour reduced-motion */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
