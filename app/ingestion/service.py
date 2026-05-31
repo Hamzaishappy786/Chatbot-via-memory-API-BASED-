@@ -1,5 +1,6 @@
 import uuid
 from pathlib import Path
+from concurrent.futures import ThreadPoolExecutor
 
 from app.config import settings
 from app.ingestion.parsers.base import ParsedContent
@@ -68,27 +69,39 @@ def ingest_document(
             metadata_db.add_chunk(cid, doc_id, chunk, "text", block.get("page"), chunk_index)
             chunk_index += 1
 
+    # Collect images that need VLM descriptions (skip full-page renders).
+    pending_images = [
+        img for img in content.images
+        if img.get("source") != "page_render"
+    ][: settings.max_images_per_doc]
+
     visual_count = 0
-    for img_data in content.images:
-        if img_data.get("source") == "page_render":
-            continue
+    if pending_images:
+        # VLM calls are I/O-bound network requests — run them concurrently so an
+        # image-heavy document doesn't serialize into dozens of round-trips.
+        # Bounded workers keep us under Groq's vision TPM limit.
+        workers = max(1, min(settings.vision_workers, len(pending_images)))
+        with ThreadPoolExecutor(max_workers=workers) as pool:
+            descriptions = list(
+                pool.map(lambda img: describe_image(llm, img["image_base64"]), pending_images)
+            )
 
-        description = describe_image(llm, img_data["image_base64"])
-        if description.startswith("[Image could not"):
-            continue
-
-        cid = f"{doc_id}_visual_{chunk_index}"
-        chunk_ids.append(cid)
-        chunk_texts.append(description)
-        chunk_metadatas.append({
-            "doc_id": doc_id,
-            "filename": filename,
-            "chunk_type": "visual",
-            "page": img_data.get("page", 1),
-        })
-        metadata_db.add_chunk(cid, doc_id, description, "visual", img_data.get("page"), chunk_index)
-        chunk_index += 1
-        visual_count += 1
+        # Store results in original order so page numbers stay stable.
+        for img_data, description in zip(pending_images, descriptions):
+            if description.startswith("[Image could not"):
+                continue
+            cid = f"{doc_id}_visual_{chunk_index}"
+            chunk_ids.append(cid)
+            chunk_texts.append(description)
+            chunk_metadatas.append({
+                "doc_id": doc_id,
+                "filename": filename,
+                "chunk_type": "visual",
+                "page": img_data.get("page", 1),
+            })
+            metadata_db.add_chunk(cid, doc_id, description, "visual", img_data.get("page"), chunk_index)
+            chunk_index += 1
+            visual_count += 1
 
     if chunk_texts:
         embeddings_list = embeddings.embed(chunk_texts)

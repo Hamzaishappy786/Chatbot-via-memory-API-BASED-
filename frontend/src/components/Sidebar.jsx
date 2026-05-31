@@ -11,11 +11,73 @@ const fileTypeColor = (ext) => {
   return map[ext] || '#8b949e';
 };
 
+// Precompute a radial spray of particles (angle → tx/ty offset)
+const BURST = Array.from({ length: 14 }, (_, i) => {
+  const angle = (i / 14) * Math.PI * 2 + (i % 2 ? 0.22 : 0);
+  const dist = 40 + (i % 3) * 14;
+  const colors = ['#58a6ff', '#3fb950', '#d29922', '#e6edf3', '#bc8cff'];
+  return {
+    tx: Math.cos(angle) * dist,
+    ty: Math.sin(angle) * dist,
+    color: colors[i % colors.length],
+    size: 4 + (i % 3) * 2,
+    delay: (i % 5) * 0.015,
+  };
+});
+
+function UploadBurst() {
+  return (
+    <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
+      {/* glow flash */}
+      <div
+        className="glow-flash absolute w-20 h-20 rounded-full"
+        style={{ background: 'radial-gradient(circle, rgba(88,166,255,.7), transparent 70%)' }}
+      />
+      {/* ripple rings */}
+      <div className="ripple-ring absolute w-12 h-12 rounded-full border-2 border-[var(--color-accent)]" />
+      <div
+        className="ripple-ring absolute w-12 h-12 rounded-full border border-[var(--color-accent2)]"
+        style={{ animationDelay: '.13s' }}
+      />
+      {/* particle spray */}
+      {BURST.map((p, i) => (
+        <span
+          key={i}
+          className="particle absolute rounded-full"
+          style={{
+            '--tx': `${p.tx}px`,
+            '--ty': `${p.ty}px`,
+            width: p.size,
+            height: p.size,
+            background: p.color,
+            boxShadow: `0 0 7px ${p.color}`,
+            animationDelay: `${p.delay}s`,
+          }}
+        />
+      ))}
+      {/* success badge */}
+      <div className="pop-spring relative w-12 h-12 rounded-full bg-gradient-to-br from-[var(--color-accent)] to-[var(--color-accent2)] flex items-center justify-center shadow-lg shadow-[var(--color-accent)]/40">
+        <CheckIcon className="check-pop text-white" width={26} height={26} />
+      </div>
+    </div>
+  );
+}
+
 export default function Sidebar({ documents, selected, onToggleSelect, onRefresh, health }) {
   const fileInput = useRef(null);
+  const burstTimer = useRef(null);
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [error, setError] = useState(null);
+  const [showBurst, setShowBurst] = useState(false);
+  const [burstKey, setBurstKey] = useState(0);
+
+  function celebrate() {
+    setBurstKey((k) => k + 1);   // remount → replays animation every upload
+    setShowBurst(true);
+    clearTimeout(burstTimer.current);
+    burstTimer.current = setTimeout(() => setShowBurst(false), 1300);
+  }
 
   async function handleFiles(files) {
     if (!files || !files.length) return;
@@ -26,6 +88,7 @@ export default function Sidebar({ documents, selected, onToggleSelect, onRefresh
         await uploadDocument(file);
       }
       await onRefresh();
+      celebrate();
     } catch (e) {
       setError(e.message);
     } finally {
@@ -65,16 +128,28 @@ export default function Sidebar({ documents, selected, onToggleSelect, onRefresh
           onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
           onDragLeave={() => setDragOver(false)}
           onDrop={(e) => { e.preventDefault(); setDragOver(false); handleFiles(e.dataTransfer.files); }}
-          className={`cursor-pointer rounded-xl border-2 border-dashed px-4 py-6 text-center transition-colors
+          className={`relative overflow-visible cursor-pointer rounded-xl border-2 border-dashed px-4 py-6 text-center transition-colors
             ${dragOver ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/10' : 'border-[var(--color-border)] hover:border-[var(--color-accent)]/60'}`}
         >
-          <UploadIcon className="mx-auto mb-2 text-[var(--color-accent)]" width={22} height={22} />
-          <p className="text-[13px] font-medium">
-            {uploading ? 'Uploading…' : 'Drop files or click to upload'}
-          </p>
-          <p className="text-[11px] text-[var(--color-muted)] mt-1">
-            PDF · DOCX · PPTX · XLSX · images · txt
-          </p>
+          {showBurst && <UploadBurst key={burstKey} />}
+
+          <div className={`transition-opacity duration-200 ${showBurst ? 'opacity-0' : 'opacity-100'}`}>
+            <div className="relative w-[22px] h-[22px] mx-auto mb-2">
+              {uploading && (
+                <span className="spin-ring absolute inset-[-7px] rounded-full border-2 border-[var(--color-accent)]/20 border-t-[var(--color-accent)]" />
+              )}
+              <UploadIcon
+                className={`text-[var(--color-accent)] ${uploading ? 'float-pulse' : ''}`}
+                width={22} height={22}
+              />
+            </div>
+            <p className="text-[13px] font-medium">
+              {uploading ? 'Uploading…' : 'Drop files or click to upload'}
+            </p>
+            <p className="text-[11px] text-[var(--color-muted)] mt-1">
+              PDF · DOCX · PPTX · XLSX · images · txt
+            </p>
+          </div>
         </div>
         <input
           ref={fileInput} type="file" multiple hidden

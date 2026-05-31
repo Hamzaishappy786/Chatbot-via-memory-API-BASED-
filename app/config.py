@@ -23,6 +23,12 @@ class Settings(BaseSettings):
     chunk_overlap_tokens: int = 40   # token overlap between consecutive chunks
     embed_batch_size: int = 64       # batch size when embedding many chunks
 
+    # Image description via VLM is the slowest part of ingestion (one Groq vision
+    # call per embedded image). Run them concurrently — bounded to stay under the
+    # 30K TPM vision rate limit. 4 workers ≈ 4x faster on image-heavy docs.
+    vision_workers: int = 4
+    max_images_per_doc: int = 30     # safety cap so a huge deck can't stall ingestion
+
     # Legacy character-based fallback (used only if tokenizer unavailable)
     chunk_size: int = 500
     chunk_overlap: int = 100
