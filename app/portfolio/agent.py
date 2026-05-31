@@ -11,7 +11,7 @@ from app.llm.base import LLMProvider
 from app.llm.embeddings import EmbeddingService
 from app.storage.vector_store import VectorStore
 from app.storage.metadata_db import MetadataDB
-from app.retrieval.retriever import hybrid_retrieve
+from app.retrieval.retriever import hybrid_retrieve, expand_context
 from app.retrieval.reranker import rerank_results
 from app.generation.evaluator import evaluate_answer, reformulate_query
 from app.agent.query_analyzer import analyze_query
@@ -84,9 +84,9 @@ def ask_portfolio(
     for attempt in range(1 + settings.max_retries):
         retrieved = hybrid_retrieve(
             current_question, embeddings, vector_store, metadata_db,
-            doc_ids=portfolio_doc_ids or None,
+            doc_ids=portfolio_doc_ids or None, llm=llm,
         )
-        reranked = rerank_results(current_question, retrieved, embeddings)
+        reranked = expand_context(rerank_results(current_question, retrieved, embeddings), metadata_db)
 
         if not reranked:
             break

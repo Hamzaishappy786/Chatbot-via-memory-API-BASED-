@@ -40,6 +40,13 @@ class Settings(BaseSettings):
     eval_threshold: float = 3.0
     max_retries: int = 2
 
+    # HyDE: generate a hypothetical answer passage and embed THAT for vector
+    # search (better semantic recall than embedding the bare question). +1 LLM call.
+    use_hyde: bool = True
+    # Parent-document context: include N neighbouring chunks on each side of a
+    # retrieved hit so the LLM sees surrounding context. Zero extra API calls.
+    context_window: int = 1
+
     # In "auto" mode, if the best reranked chunk scores below this cross-encoder
     # logit, the documents are deemed irrelevant and the bot answers from general
     # knowledge instead. Observed scores: relevant ≈ -2..-4, irrelevant ≈ -10.

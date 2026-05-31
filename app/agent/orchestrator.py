@@ -6,7 +6,7 @@ from app.llm.base import LLMProvider
 from app.llm.embeddings import EmbeddingService
 from app.storage.vector_store import VectorStore
 from app.storage.metadata_db import MetadataDB
-from app.retrieval.retriever import hybrid_retrieve
+from app.retrieval.retriever import hybrid_retrieve, expand_context
 from app.retrieval.reranker import rerank_results
 from app.generation.generator import generate_answer, generate_general_answer
 from app.generation.evaluator import evaluate_answer, reformulate_query
@@ -51,8 +51,8 @@ def run_agent(
 
     strategy = analyze_query(question, llm)
 
-    # Retrieve + rerank once to see if documents are relevant
-    retrieved = hybrid_retrieve(question, embeddings, vector_store, metadata_db, doc_ids=doc_ids)
+    # Retrieve + rerank once to see if documents are relevant (HyDE-enhanced)
+    retrieved = hybrid_retrieve(question, embeddings, vector_store, metadata_db, doc_ids=doc_ids, llm=llm)
     reranked = rerank_results(question, retrieved, embeddings)
     best_score = max((c.get("rerank_score", -99.0) for c in reranked), default=-99.0)
 
@@ -83,7 +83,7 @@ def _run_grounded_loop(question, doc_ids, llm, embeddings, vector_store,
     current_question = question
     best_answer = ""
     best_eval = EvaluationScore(relevance=1, faithfulness=1, completeness=1, average=1.0)
-    best_chunks = reranked
+    best_chunks = expand_context(reranked, metadata_db)   # attach neighbour context
     retries = 0
 
     for attempt in range(1 + settings.max_retries):
@@ -100,10 +100,10 @@ def _run_grounded_loop(question, doc_ids, llm, embeddings, vector_store,
         if attempt < settings.max_retries:
             current_question = reformulate_query(question, llm)
             retries += 1
-            retrieved = hybrid_retrieve(current_question, embeddings, vector_store, metadata_db, doc_ids=doc_ids)
+            retrieved = hybrid_retrieve(current_question, embeddings, vector_store, metadata_db, doc_ids=doc_ids, llm=llm)
             new_reranked = rerank_results(current_question, retrieved, embeddings)
             if new_reranked:
-                best_chunks = new_reranked
+                best_chunks = expand_context(new_reranked, metadata_db)
 
     citations = [
         Citation(

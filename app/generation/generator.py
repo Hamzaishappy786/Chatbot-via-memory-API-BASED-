@@ -16,7 +16,9 @@ def build_context(chunks: list[dict]) -> str:
     for i, chunk in enumerate(chunks, 1):
         source = f"[{chunk['filename']}, Page {chunk.get('page', '?')}]"
         tag = "[Visual]" if chunk.get("chunk_type") == "visual" else "[Text]"
-        parts.append(f"--- Chunk {i} {tag} {source} ---\n{chunk['content']}")
+        # Prefer the context-expanded text (neighbouring chunks) when available.
+        body = chunk.get("context") or chunk["content"]
+        parts.append(f"--- Chunk {i} {tag} {source} ---\n{body}")
     return "\n\n".join(parts)
 
 
