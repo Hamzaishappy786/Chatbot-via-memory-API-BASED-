@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+.env
+data/chroma/
+data/uploads/
+data/metadata.db
+.venv/
+venv/
+*.pyc
+.idea/
+.vscode/
