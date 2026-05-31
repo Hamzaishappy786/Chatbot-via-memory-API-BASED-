@@ -72,6 +72,7 @@ export default function Sidebar({ documents, selected, onToggleSelect, onRefresh
   const [error, setError] = useState(null);
   const [showBurst, setShowBurst] = useState(false);
   const [burstKey, setBurstKey] = useState(0);
+  const [removing, setRemoving] = useState([]);   // doc_ids mid exit-animation
 
   function celebrate() {
     setBurstKey((k) => k + 1);   // remount → replays animation every time
@@ -115,20 +116,25 @@ export default function Sidebar({ documents, selected, onToggleSelect, onRefresh
 
   async function handleDelete(docId, e) {
     e.stopPropagation();
-    try {
-      await deleteDocument(docId);
-      await onRefresh();
-    } catch (err) {
-      setError(err.message);
-    }
+    setRemoving((r) => [...r, docId]);            // trigger exit animation first
+    setTimeout(async () => {
+      try {
+        await deleteDocument(docId);
+        await onRefresh();
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setRemoving((r) => r.filter((id) => id !== docId));
+      }
+    }, 320);                                       // match card-exit duration
   }
 
   return (
-    <aside className="w-80 shrink-0 border-r border-[var(--color-border)] bg-[var(--color-surface)] flex flex-col h-full">
+    <aside className="slide-in-left w-80 shrink-0 border-r border-[var(--color-border)] bg-[var(--color-surface)] flex flex-col h-full">
       {/* Brand */}
       <div className="px-5 py-4 border-b border-[var(--color-border)]">
-        <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-[var(--color-accent)] to-[var(--color-accent2)] flex items-center justify-center text-white font-bold text-sm">
+        <div className="group flex items-center gap-2.5">
+          <div className="gradient-pan hover-wiggle w-9 h-9 rounded-lg bg-gradient-to-br from-[var(--color-accent)] via-[var(--color-accent2)] to-[var(--color-accent)] flex items-center justify-center text-white font-bold text-sm cursor-default transition-transform duration-300 group-hover:scale-110 shadow-lg shadow-[var(--color-accent)]/20">
             R
           </div>
           <div>
@@ -145,8 +151,10 @@ export default function Sidebar({ documents, selected, onToggleSelect, onRefresh
           onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
           onDragLeave={() => setDragOver(false)}
           onDrop={(e) => { e.preventDefault(); setDragOver(false); handleFiles(e.dataTransfer.files); }}
-          className={`relative overflow-visible cursor-pointer rounded-xl border-2 border-dashed px-4 py-6 text-center transition-colors
-            ${dragOver ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/10' : 'border-[var(--color-border)] hover:border-[var(--color-accent)]/60'}`}
+          className={`relative overflow-visible cursor-pointer rounded-xl px-4 py-6 text-center transition-all duration-200
+            ${dragOver
+              ? 'marching-ants glow-pulse bg-[var(--color-accent)]/10 scale-[1.03] border-2 border-transparent'
+              : 'border-2 border-dashed border-[var(--color-border)] hover:border-[var(--color-accent)]/60 hover:bg-[var(--color-surface2)]/40'}`}
         >
           {showBurst && <UploadBurst key={burstKey} />}
 
@@ -156,7 +164,7 @@ export default function Sidebar({ documents, selected, onToggleSelect, onRefresh
                 <span className="spin-ring absolute inset-[-7px] rounded-full border-2 border-[var(--color-accent)]/20 border-t-[var(--color-accent)]" />
               )}
               <UploadIcon
-                className={`text-[var(--color-accent)] ${uploading ? 'float-pulse' : ''}`}
+                className={`text-[var(--color-accent)] ${uploading ? 'float-pulse' : dragOver ? 'breathe' : 'bob'}`}
                 width={22} height={22}
               />
             </div>
@@ -195,22 +203,25 @@ export default function Sidebar({ documents, selected, onToggleSelect, onRefresh
           </p>
         ) : (
           <ul className="space-y-1.5">
-            {documents.map((doc) => {
+            {documents.map((doc, idx) => {
               const isSel = selected.includes(doc.doc_id);
               const isProcessing = doc.status === 'processing';
               const isError = doc.status === 'error';
+              const isRemoving = removing.includes(doc.doc_id);
               const selectable = !isProcessing && !isError;
               return (
                 <li
                   key={doc.doc_id}
-                  onClick={() => selectable && onToggleSelect(doc.doc_id)}
-                  className={`group rounded-lg border px-3 py-2.5 transition-colors
-                    ${selectable ? 'cursor-pointer' : 'cursor-default'}
+                  onClick={() => selectable && !isRemoving && onToggleSelect(doc.doc_id)}
+                  style={{ animationDelay: `${Math.min(idx, 8) * 0.04}s` }}
+                  className={`group rounded-lg border px-3 py-2.5 transition-all duration-200 will-change-transform
+                    ${isRemoving ? 'card-exit' : 'slide-in-left'}
+                    ${selectable ? 'cursor-pointer hover:-translate-y-0.5 hover:shadow-lg hover:shadow-black/20' : 'cursor-default'}
                     ${isSel
                       ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/10'
                       : isError
                         ? 'border-[#f85149]/40 bg-[#f85149]/5'
-                        : 'border-[var(--color-border)] hover:bg-[var(--color-surface2)]'}
+                        : 'border-[var(--color-border)] hover:bg-[var(--color-surface2)] hover:border-[var(--color-accent)]/40'}
                     ${isProcessing ? 'opacity-90' : ''}`}
                 >
                   <div className="flex items-start gap-2.5">
@@ -245,7 +256,7 @@ export default function Sidebar({ documents, selected, onToggleSelect, onRefresh
                     </div>
                     <button
                       onClick={(e) => handleDelete(doc.doc_id, e)}
-                      className="opacity-0 group-hover:opacity-100 text-[var(--color-muted)] hover:text-[#f85149] transition shrink-0"
+                      className="hover-wiggle opacity-0 group-hover:opacity-100 text-[var(--color-muted)] hover:text-[#f85149] hover:scale-125 transition-all shrink-0"
                       title="Delete"
                     >
                       <TrashIcon width={14} height={14} />
@@ -260,7 +271,7 @@ export default function Sidebar({ documents, selected, onToggleSelect, onRefresh
         {selected.length > 0 && (
           <button
             onClick={() => selected.forEach(onToggleSelect)}
-            className="mt-3 w-full text-[11px] text-[var(--color-muted)] hover:text-[var(--color-ink)] py-1"
+            className="pop-in-up mt-3 w-full text-[11px] text-[var(--color-muted)] hover:text-[var(--color-ink)] py-1.5 rounded-lg hover:bg-[var(--color-surface2)] transition-colors"
           >
             Clear scope (query all documents)
           </button>
@@ -269,7 +280,13 @@ export default function Sidebar({ documents, selected, onToggleSelect, onRefresh
 
       {/* Health footer */}
       <div className="px-5 py-3 border-t border-[var(--color-border)] flex items-center gap-2 text-[11px] text-[var(--color-muted)]">
-        <span className={`w-2 h-2 rounded-full ${health?.groq_connected ? 'bg-[var(--color-accent2)]' : 'bg-[#f85149]'}`} />
+        <span
+          className={`relative w-2 h-2 rounded-full ${
+            health?.groq_connected
+              ? 'bg-[var(--color-accent2)] text-[var(--color-accent2)] live-ping'
+              : 'bg-[#f85149]'
+          }`}
+        />
         {health
           ? `Groq ${health.groq_connected ? 'connected' : 'offline'} · ${health.chunks_count} chunks indexed`
           : 'Connecting…'}

@@ -41,8 +41,8 @@ function BotMessage({ msg }) {
   const ev = msg.evaluation;
 
   return (
-    <div className="fade-up flex gap-3 max-w-3xl">
-      <div className="w-8 h-8 rounded-full bg-[var(--color-surface2)] border border-[var(--color-border)] flex items-center justify-center shrink-0 mt-0.5">
+    <div className="pop-in-up flex gap-3 max-w-3xl">
+      <div className="pop-in w-8 h-8 rounded-full bg-[var(--color-surface2)] border border-[var(--color-border)] flex items-center justify-center shrink-0 mt-0.5">
         <SparkIcon width={15} height={15} className="text-[var(--color-accent)]" />
       </div>
       <div className="min-w-0">
@@ -54,7 +54,11 @@ function BotMessage({ msg }) {
               <p className="text-[10.5px] uppercase tracking-wider text-[var(--color-muted)] mb-1.5">Sources</p>
               <div className="space-y-1.5">
                 {msg.citations.map((c, i) => (
-                  <div key={i} className="flex gap-2 items-baseline text-[11.5px] bg-[var(--color-bg)] border border-[var(--color-border)] rounded-lg px-2.5 py-1.5">
+                  <div
+                    key={i}
+                    style={{ animationDelay: `${0.1 + i * 0.07}s` }}
+                    className="pop-in-up flex gap-2 items-baseline text-[11.5px] bg-[var(--color-bg)] border border-[var(--color-border)] rounded-lg px-2.5 py-1.5 hover:border-[var(--color-accent2)]/50 transition-colors"
+                  >
                     <span className="text-[var(--color-accent2)] font-medium shrink-0">
                       {c.filename}{c.page ? ` · p.${c.page}` : ''}
                     </span>
@@ -69,12 +73,12 @@ function BotMessage({ msg }) {
         {/* meta row */}
         <div className="flex items-center gap-2 mt-1.5 px-1 flex-wrap">
           {isGeneral ? (
-            <span className="text-[10.5px] px-2 py-0.5 rounded-full border bg-[#d29922]/15 text-[#d29922] border-[#d29922]/30">
+            <span className="pop-in text-[10.5px] px-2 py-0.5 rounded-full border bg-[#d29922]/15 text-[#d29922] border-[#d29922]/30">
               💡 General knowledge — not from your documents
             </span>
           ) : (
             <>
-              <span className={`text-[10.5px] px-2 py-0.5 rounded-full border ${conf.cls}`}>
+              <span className={`pop-in text-[10.5px] px-2 py-0.5 rounded-full border ${conf.cls}`}>
                 {conf.label} confidence · {Math.round((msg.confidence ?? 0) * 100)}%
               </span>
               {msg.strategy && (
@@ -98,8 +102,8 @@ function BotMessage({ msg }) {
 
 function UserMessage({ text }) {
   return (
-    <div className="fade-up flex gap-3 max-w-3xl ml-auto flex-row-reverse">
-      <div className="w-8 h-8 rounded-full bg-[var(--color-accent)] flex items-center justify-center shrink-0 mt-0.5 text-white text-[13px] font-semibold">
+    <div className="pop-in-up flex gap-3 max-w-3xl ml-auto flex-row-reverse">
+      <div className="pop-in w-8 h-8 rounded-full bg-[var(--color-accent)] flex items-center justify-center shrink-0 mt-0.5 text-white text-[13px] font-semibold">
         Y
       </div>
       <div className="rounded-2xl rounded-tr-sm bg-[var(--color-accent)]/15 border border-[var(--color-accent)]/30 px-4 py-3 text-[14px] leading-relaxed">
@@ -166,8 +170,10 @@ export default function ChatPanel({ selectedDocIds, documents }) {
         ? `all ${documents.length} document${documents.length === 1 ? '' : 's'}`
         : `${selectedDocIds.length} selected document${selectedDocIds.length === 1 ? '' : 's'}`;
 
+  const activeIndex = MODES.findIndex((m) => m.id === mode);
+
   return (
-    <main className="flex-1 flex flex-col h-full min-w-0">
+    <main className="slide-in-right flex-1 flex flex-col h-full min-w-0">
       {/* top bar */}
       <div className="px-6 py-3 border-b border-[var(--color-border)] bg-[var(--color-surface)]/50 backdrop-blur flex items-center justify-between gap-4">
         <div className="min-w-0">
@@ -179,16 +185,19 @@ export default function ChatPanel({ selectedDocIds, documents }) {
 
         {/* mode segmented control */}
         <div className="flex items-center gap-3 shrink-0">
-          <div className="flex rounded-lg border border-[var(--color-border)] overflow-hidden">
+          <div className="relative flex rounded-lg border border-[var(--color-border)] p-0.5 bg-[var(--color-bg)]">
+            {/* sliding active indicator */}
+            <span
+              className="absolute left-0.5 top-0.5 bottom-0.5 rounded-md bg-[var(--color-accent)] shadow-lg shadow-[var(--color-accent)]/30 transition-transform duration-300 ease-[cubic-bezier(.2,.7,.3,1)]"
+              style={{ width: 'calc((100% - 4px) / 3)', transform: `translateX(${activeIndex * 100}%)` }}
+            />
             {MODES.map((m) => (
               <button
                 key={m.id}
                 onClick={() => setMode(m.id)}
                 title={m.hint}
-                className={`px-3 py-1.5 text-[12px] font-medium transition-colors
-                  ${mode === m.id
-                    ? 'bg-[var(--color-accent)] text-white'
-                    : 'text-[var(--color-muted)] hover:bg-[var(--color-surface2)]'}`}
+                className={`relative z-10 flex-1 px-3 py-1.5 text-[12px] font-medium transition-colors active:scale-95
+                  ${mode === m.id ? 'text-white' : 'text-[var(--color-muted)] hover:text-[var(--color-ink)]'}`}
               >
                 {m.label}
               </button>
@@ -197,7 +206,7 @@ export default function ChatPanel({ selectedDocIds, documents }) {
           {messages.length > 0 && (
             <button
               onClick={() => { setMessages([]); setSessionId(null); }}
-              className="text-[12px] text-[var(--color-muted)] hover:text-[var(--color-ink)] px-3 py-1.5 rounded-lg border border-[var(--color-border)] hover:bg-[var(--color-surface2)]"
+              className="pop-in-up text-[12px] text-[var(--color-muted)] hover:text-[var(--color-ink)] px-3 py-1.5 rounded-lg border border-[var(--color-border)] hover:bg-[var(--color-surface2)] hover:-translate-y-0.5 active:scale-95 transition-all"
             >
               New chat
             </button>
@@ -209,13 +218,13 @@ export default function ChatPanel({ selectedDocIds, documents }) {
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-6 py-6 space-y-5">
         {messages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center max-w-lg mx-auto">
-            <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[var(--color-accent)] to-[var(--color-accent2)] flex items-center justify-center mb-4">
+            <div className="glow-pulse breathe gradient-pan w-14 h-14 rounded-2xl bg-gradient-to-br from-[var(--color-accent)] via-[var(--color-accent2)] to-[var(--color-accent)] flex items-center justify-center mb-4 shadow-xl shadow-[var(--color-accent)]/30">
               <SparkIcon width={26} height={26} className="text-white" />
             </div>
-            <h3 className="text-lg font-semibold mb-1.5">
+            <h3 className="pop-in-up text-lg font-semibold mb-1.5">
               {mode === 'general' ? 'Ask me anything' : 'Ask your documents anything'}
             </h3>
-            <p className="text-[13px] text-[var(--color-muted)] mb-6">
+            <p className="pop-in-up text-[13px] text-[var(--color-muted)] mb-6" style={{ animationDelay: '.06s' }}>
               {mode === 'general'
                 ? 'General-purpose AI assistant. Switch to Auto or Documents to query your files.'
                 : documents.length === 0
@@ -223,11 +232,12 @@ export default function ChatPanel({ selectedDocIds, documents }) {
                   : 'Hybrid retrieval + reranking + self-evaluation, with citations on every grounded answer.'}
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full">
-              {suggestions.map((s) => (
+              {suggestions.map((s, i) => (
                 <button
                   key={s}
                   onClick={() => send(s)}
-                  className="text-[12.5px] text-left px-3.5 py-2.5 rounded-xl border border-[var(--color-border)] hover:border-[var(--color-accent)]/60 hover:bg-[var(--color-surface2)] transition"
+                  style={{ animationDelay: `${0.12 + i * 0.07}s` }}
+                  className="pop-in-up text-[12.5px] text-left px-3.5 py-2.5 rounded-xl border border-[var(--color-border)] hover:border-[var(--color-accent)]/60 hover:bg-[var(--color-surface2)] hover:-translate-y-0.5 hover:shadow-lg hover:shadow-black/20 active:scale-95 transition-all"
                 >
                   {s}
                 </button>
@@ -261,14 +271,17 @@ export default function ChatPanel({ selectedDocIds, documents }) {
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
             }}
-            className="flex-1 resize-none bg-[var(--color-bg)] border border-[var(--color-border)] focus:border-[var(--color-accent)] outline-none rounded-xl px-4 py-3 text-[14px] leading-relaxed max-h-36 disabled:opacity-50"
+            className="flex-1 resize-none bg-[var(--color-bg)] border border-[var(--color-border)] focus:border-[var(--color-accent)] focus:shadow-lg focus:shadow-[var(--color-accent)]/15 outline-none rounded-xl px-4 py-3 text-[14px] leading-relaxed max-h-36 disabled:opacity-50 transition-all"
           />
           <button
             onClick={() => send()}
             disabled={busy || !input.trim() || inputDisabled}
-            className="shrink-0 bg-[var(--color-accent)] text-white rounded-xl px-4 py-3 font-medium disabled:opacity-40 hover:opacity-90 transition flex items-center gap-2"
+            className="group shrink-0 bg-[var(--color-accent)] text-white rounded-xl px-4 py-3 font-medium disabled:opacity-40 disabled:hover:scale-100 hover:opacity-90 hover:scale-105 active:scale-95 transition-all flex items-center gap-2 shadow-lg shadow-[var(--color-accent)]/20"
           >
-            <SendIcon width={16} height={16} />
+            <SendIcon
+              width={16} height={16}
+              className="transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+            />
           </button>
         </div>
         <p className="text-center text-[11px] text-[var(--color-muted)] mt-2">

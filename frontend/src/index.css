@@ -84,3 +84,95 @@ html, body, #root {
 /* animated "…" after the Processing label */
 @keyframes dots { 0%{content:''} 25%{content:'.'} 50%{content:'..'} 75%,100%{content:'...'} }
 .processing-dots::after { content:''; animation: dots 1.3s steps(1) infinite; }
+
+/* ═══════════════  Global motion library  ═══════════════ */
+
+/* Entrance — fade + rise + subtle scale */
+@keyframes pop-in-up {
+  0%   { opacity: 0; transform: translateY(10px) scale(.97); }
+  100% { opacity: 1; transform: translateY(0)    scale(1); }
+}
+.pop-in-up { animation: pop-in-up .34s cubic-bezier(.2,.7,.3,1) both; }
+
+/* Entrance — slide from left (sidebar rows) */
+@keyframes slide-in-left {
+  0%   { opacity: 0; transform: translateX(-16px); }
+  100% { opacity: 1; transform: translateX(0); }
+}
+.slide-in-left { animation: slide-in-left .34s cubic-bezier(.2,.7,.3,1) both; }
+
+/* Entrance — slide from right (chat column) */
+@keyframes slide-in-right {
+  0%   { opacity: 0; transform: translateX(22px); }
+  100% { opacity: 1; transform: translateX(0); }
+}
+.slide-in-right { animation: slide-in-right .42s cubic-bezier(.2,.7,.3,1) both; }
+
+/* Exit — card collapses out (delete) */
+@keyframes card-exit {
+  0%   { opacity: 1; transform: translateX(0)    scale(1);  max-height: 90px; }
+  100% { opacity: 0; transform: translateX(46px) scale(.8); max-height: 0;
+         margin-bottom: 0; padding-top: 0; padding-bottom: 0; border-width: 0; }
+}
+.card-exit { animation: card-exit .34s ease-in forwards; overflow: hidden; }
+
+/* Spring pop (avatars, badges) */
+@keyframes pop-in {
+  0%   { opacity: 0; transform: scale(0); }
+  60%  { transform: scale(1.18); }
+  100% { opacity: 1; transform: scale(1); }
+}
+.pop-in { animation: pop-in .42s cubic-bezier(.18,.89,.32,1.28) both; }
+
+/* Breathing (empty-state hero) */
+@keyframes breathe { 0%,100%{transform:scale(1)} 50%{transform:scale(1.07)} }
+.breathe { animation: breathe 3s ease-in-out infinite; }
+
+/* Slow bob (idle upload icon) */
+@keyframes bob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-3px)} }
+.bob { animation: bob 2.4s ease-in-out infinite; }
+
+/* Panning gradient (brand mark) */
+@keyframes gradient-pan { 0%,100%{background-position:0% 50%} 50%{background-position:100% 50%} }
+.gradient-pan { background-size: 200% 200%; animation: gradient-pan 4s ease infinite; }
+
+/* Pulsing glow (drag-over, focus) */
+@keyframes glow-pulse {
+  0%,100% { box-shadow: 0 0 0 0 rgba(88,166,255,0); }
+  50%     { box-shadow: 0 0 18px 2px rgba(88,166,255,.4); }
+}
+.glow-pulse { animation: glow-pulse 1.6s ease-in-out infinite; }
+
+/* Marching ants (drop zone while dragging) */
+@keyframes ants { to { background-position: 16px 0, -16px 100%, 0 -16px, 100% 16px; } }
+.marching-ants {
+  background-image:
+    linear-gradient(90deg, var(--color-accent) 50%, transparent 50%),
+    linear-gradient(90deg, var(--color-accent) 50%, transparent 50%),
+    linear-gradient(0deg,  var(--color-accent) 50%, transparent 50%),
+    linear-gradient(0deg,  var(--color-accent) 50%, transparent 50%);
+  background-repeat: repeat-x, repeat-x, repeat-y, repeat-y;
+  background-size: 16px 2px, 16px 2px, 2px 16px, 2px 16px;
+  background-position: 0 0, 0 100%, 0 0, 100% 0;
+  animation: ants .5s linear infinite;
+}
+
+/* Live ping ring (health dot) */
+@keyframes live-ping { 0%{transform:scale(1);opacity:.55} 100%{transform:scale(2.8);opacity:0} }
+.live-ping::after {
+  content: ''; position: absolute; inset: 0; border-radius: 9999px;
+  background: currentColor; animation: live-ping 1.8s ease-out infinite;
+}
+
+/* Wiggle on hover (icons) */
+@keyframes wiggle { 0%,100%{transform:rotate(0)} 25%{transform:rotate(-9deg)} 75%{transform:rotate(9deg)} }
+.hover-wiggle:hover { animation: wiggle .45s ease-in-out; }
+
+/* Accessibility: honour reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+  }
+}
