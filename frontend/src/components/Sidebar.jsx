@@ -206,40 +206,43 @@ export default function Sidebar({ documents, selected, onToggleSelect, onRefresh
           <span className="text-[11px] uppercase tracking-wider text-[var(--color-muted)]">
             Documents ({documents.length})
           </span>
-          {selected.length > 0 ? (
-            <span className="text-[11px] text-[var(--color-accent)]">
-              {selected.length} scoped
-            </span>
-          ) : documents.length > 0 && (
-            confirmClear ? (
-              <span className="pop-in-up flex items-center gap-1.5 text-[11px]">
-                <span className="text-[var(--color-muted)]">Clear all?</span>
-                <button
-                  onClick={handleClearAll}
-                  disabled={clearing}
-                  className="text-[#f85149] font-medium hover:underline active:scale-95 transition-transform disabled:opacity-50"
-                >
-                  {clearing ? 'Clearing…' : 'Yes'}
-                </button>
-                <button
-                  onClick={() => setConfirmClear(false)}
-                  disabled={clearing}
-                  className="text-[var(--color-muted)] hover:text-[var(--color-ink)] active:scale-95 transition-transform"
-                >
-                  No
-                </button>
+          <div className="flex items-center gap-2.5">
+            {selected.length > 0 && (
+              <span className="text-[11px] text-[var(--color-accent)]">
+                {selected.length} scoped
               </span>
-            ) : (
-              <button
-                onClick={() => setConfirmClear(true)}
-                className="flex items-center gap-1 text-[11px] text-[var(--color-muted)] hover:text-[#f85149] active:scale-95 transition-all"
-                title="Remove all documents and chunks"
-              >
-                <TrashIcon width={11} height={11} />
-                Clear all
-              </button>
-            )
-          )}
+            )}
+            {documents.length > 0 && (
+              confirmClear ? (
+                <span className="pop-in-up flex items-center gap-1.5 text-[11px]">
+                  <span className="text-[var(--color-muted)]">Clear all?</span>
+                  <button
+                    onClick={handleClearAll}
+                    disabled={clearing}
+                    className="text-[#f85149] font-medium hover:underline active:scale-95 transition-transform disabled:opacity-50"
+                  >
+                    {clearing ? 'Clearing…' : 'Yes'}
+                  </button>
+                  <button
+                    onClick={() => setConfirmClear(false)}
+                    disabled={clearing}
+                    className="text-[var(--color-muted)] hover:text-[var(--color-ink)] active:scale-95 transition-transform"
+                  >
+                    No
+                  </button>
+                </span>
+              ) : (
+                <button
+                  onClick={() => setConfirmClear(true)}
+                  className="flex items-center gap-1 text-[11px] text-[var(--color-muted)] hover:text-[#f85149] active:scale-95 transition-all"
+                  title="Remove all documents and chunks"
+                >
+                  <TrashIcon width={11} height={11} />
+                  Clear all
+                </button>
+              )
+            )}
+          </div>
         </div>
 
         {documents.length === 0 ? (
