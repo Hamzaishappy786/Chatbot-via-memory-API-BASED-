@@ -69,6 +69,14 @@ class MetadataDB:
         self._conn.execute("DELETE FROM documents WHERE doc_id = ?", (doc_id,))
         self._conn.commit()
 
+    def clear_all(self) -> int:
+        """Remove every document and chunk. Returns how many documents were deleted."""
+        n = self._conn.execute("SELECT COUNT(*) FROM documents").fetchone()[0]
+        self._conn.execute("DELETE FROM chunks")
+        self._conn.execute("DELETE FROM documents")
+        self._conn.commit()
+        return n
+
     def add_chunk(self, chunk_id: str, doc_id: str, content: str, chunk_type: str, page_number: int | None, chunk_index: int):
         self._conn.execute(
             "INSERT INTO chunks (chunk_id, doc_id, content, chunk_type, page_number, chunk_index) VALUES (?, ?, ?, ?, ?, ?)",

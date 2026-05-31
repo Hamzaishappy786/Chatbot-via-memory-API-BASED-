@@ -26,6 +26,10 @@ export async function deleteDocument(docId) {
   return handle(await fetch(`/documents/${docId}`, { method: 'DELETE' }));
 }
 
+export async function clearAllDocuments() {
+  return handle(await fetch('/documents/', { method: 'DELETE' }));
+}
+
 export async function query({ question, docIds, sessionId, mode }) {
   return handle(await fetch('/query', {
     method: 'POST',

@@ -129,6 +129,21 @@ def get_document(doc_id: str):
     )
 
 
+@router.delete("/")
+def clear_all_documents():
+    """Wipe the entire workspace: all vectors, chunks, documents, and uploaded files."""
+    docs = deps.metadata_db.list_documents()
+    for d in docs:
+        fp = d.get("file_path")
+        if fp:
+            Path(fp).unlink(missing_ok=True)
+
+    deps.vector_store.clear()
+    count = deps.metadata_db.clear_all()
+    deps.portfolio_doc_ids.clear()
+    return {"message": f"Cleared workspace — removed {count} document(s) and all chunks.", "deleted": count}
+
+
 @router.delete("/{doc_id}")
 def delete_document(doc_id: str):
     doc = deps.metadata_db.get_document(doc_id)

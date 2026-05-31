@@ -33,5 +33,13 @@ class VectorStore:
     def delete_by_doc_id(self, doc_id: str):
         self._collection.delete(where={"doc_id": doc_id})
 
+    def clear(self):
+        """Drop every vector by deleting and recreating the collection."""
+        self._client.delete_collection(name=settings.chroma_collection)
+        self._collection = self._client.get_or_create_collection(
+            name=settings.chroma_collection,
+            metadata={"hnsw:space": "cosine"},
+        )
+
     def count(self) -> int:
         return self._collection.count()

@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect } from 'react';
-import { uploadDocument, deleteDocument } from '../api';
+import { uploadDocument, deleteDocument, clearAllDocuments } from '../api';
 import { UploadIcon, FileIcon, TrashIcon, CheckIcon } from './icons';
 
 const fileTypeColor = (ext) => {
@@ -73,6 +73,8 @@ export default function Sidebar({ documents, selected, onToggleSelect, onRefresh
   const [showBurst, setShowBurst] = useState(false);
   const [burstKey, setBurstKey] = useState(0);
   const [removing, setRemoving] = useState([]);   // doc_ids mid exit-animation
+  const [confirmClear, setConfirmClear] = useState(false);
+  const [clearing, setClearing] = useState(false);
 
   function celebrate() {
     setBurstKey((k) => k + 1);   // remount → replays animation every time
@@ -111,6 +113,20 @@ export default function Sidebar({ documents, selected, onToggleSelect, onRefresh
       setError(e.message);
     } finally {
       setUploading(false);
+    }
+  }
+
+  async function handleClearAll() {
+    setClearing(true);
+    setError(null);
+    try {
+      await clearAllDocuments();
+      await onRefresh();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setClearing(false);
+      setConfirmClear(false);
     }
   }
 
@@ -186,14 +202,43 @@ export default function Sidebar({ documents, selected, onToggleSelect, onRefresh
 
       {/* Document list */}
       <div className="flex-1 overflow-y-auto px-4 pb-4">
-        <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center justify-between mb-2 min-h-[20px]">
           <span className="text-[11px] uppercase tracking-wider text-[var(--color-muted)]">
             Documents ({documents.length})
           </span>
-          {selected.length > 0 && (
+          {selected.length > 0 ? (
             <span className="text-[11px] text-[var(--color-accent)]">
               {selected.length} scoped
             </span>
+          ) : documents.length > 0 && (
+            confirmClear ? (
+              <span className="pop-in-up flex items-center gap-1.5 text-[11px]">
+                <span className="text-[var(--color-muted)]">Clear all?</span>
+                <button
+                  onClick={handleClearAll}
+                  disabled={clearing}
+                  className="text-[#f85149] font-medium hover:underline active:scale-95 transition-transform disabled:opacity-50"
+                >
+                  {clearing ? 'Clearing…' : 'Yes'}
+                </button>
+                <button
+                  onClick={() => setConfirmClear(false)}
+                  disabled={clearing}
+                  className="text-[var(--color-muted)] hover:text-[var(--color-ink)] active:scale-95 transition-transform"
+                >
+                  No
+                </button>
+              </span>
+            ) : (
+              <button
+                onClick={() => setConfirmClear(true)}
+                className="flex items-center gap-1 text-[11px] text-[var(--color-muted)] hover:text-[#f85149] active:scale-95 transition-all"
+                title="Remove all documents and chunks"
+              >
+                <TrashIcon width={11} height={11} />
+                Clear all
+              </button>
+            )
           )}
         </div>
 
